@@ -172,6 +172,15 @@ tr:hover td { background: var(--bg-hover); }
 .no-data { text-align: center; padding: 40px; color: var(--text-muted); }
 
 /* ═══════════ Loading ═══════════ */
+/* ═══════════ PIN Screen ═══════════ */
+.pin-screen { position: fixed; inset: 0; z-index: 999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+.pin-screen.hidden { display: none; }
+.pin-title { font-size: 20px; font-weight: 600; }
+.pin-input { width: 160px; padding: 12px; text-align: center; font-size: 28px; letter-spacing: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); outline: none; -webkit-text-security: disc; }
+.pin-input:focus { border-color: var(--blue); }
+.pin-error { color: var(--red); font-size: 14px; min-height: 20px; }
+
+/* ═══════════ Loading ═══════════ */
 .loading {
   display: flex; align-items: center; justify-content: center;
   min-height: 400px; font-size: 16px; color: var(--text-secondary);
@@ -191,6 +200,13 @@ tr:hover td { background: var(--bg-hover); }
 </style>
 </head>
 <body>
+
+<!-- ═══════════ PIN Screen ═══════════ -->
+<div class="pin-screen" id="pinScreen">
+  <div class="pin-title">Enter PIN</div>
+  <input type="tel" class="pin-input" id="pinInput" maxlength="4" autofocus inputmode="numeric">
+  <div class="pin-error" id="pinError"></div>
+</div>
 
 <!-- ═══════════ Header ═══════════ -->
 <div class="header">
@@ -223,6 +239,9 @@ tr:hover td { background: var(--bg-hover); }
 // ═══════════════════════════════════════════════════════════════════
 // State
 // ═══════════════════════════════════════════════════════════════════
+var API_URL = 'https://script.google.com/macros/s/AKfycbxuOnv0mqvrj65JrnZsSh_sYQn8hwcp_g3jJBP2WpaLxSacX_y3hbzleF5UBiCR1XZs/exec';
+var API_KEY = '2589';
+
 var state = {
   allRows: [],
   filtered: [],
@@ -230,8 +249,6 @@ var state = {
   charts: {}
 };
 
-var API_URL = 'https://script.google.com/macros/s/AKfycbxuOnv0mqvrj65JrnZsSh_sYQn8hwcp_g3jJBP2WpaLxSacX_y3hbzleF5UBiCR1XZs/exec';
-var API_KEY = '2589';
 
 // ═══════════════════════════════════════════════════════════════════
 // Helpers
@@ -635,7 +652,13 @@ function onCustomDate() {
 // ═══════════════════════════════════════════════════════════════════
 // Init
 // ═══════════════════════════════════════════════════════════════════
-fetchData();
+// ── PIN ──
+var PIN_HASH = '178884';
+function hashPin(p){var h=0;for(var i=0;i<p.length;i++){h=((h<<5)-h+p.charCodeAt(i))|0;}return(h>>>0).toString(16);}
+function checkAuth(){if(sessionStorage.getItem('whoop_auth')==='1'){unlock();return;}document.getElementById('pinScreen').classList.remove('hidden');document.querySelector('.header').style.display='none';document.querySelector('.main').style.display='none';document.querySelector('.footer').style.display='none';}
+function unlock(){document.getElementById('pinScreen').classList.add('hidden');document.querySelector('.header').style.display='';document.querySelector('.main').style.display='';document.querySelector('.footer').style.display='';sessionStorage.setItem('whoop_auth','1');fetchData();}
+document.getElementById('pinInput').addEventListener('input',function(){if(this.value.length===4){if(hashPin(this.value)===PIN_HASH){unlock();}else{document.getElementById('pinError').textContent='Wrong PIN';this.value='';}}});
+checkAuth();
 
 // Auto-refresh every 5 min
 setInterval(fetchData, 5 * 60 * 1000);
