@@ -231,6 +231,7 @@ var state = {
 };
 
 var API_URL = 'https://script.google.com/macros/s/AKfycbxuOnv0mqvrj65JrnZsSh_sYQn8hwcp_g3jJBP2WpaLxSacX_y3hbzleF5UBiCR1XZs/exec';
+var API_KEY = '2589';
 
 // ═══════════════════════════════════════════════════════════════════
 // Helpers
@@ -290,7 +291,7 @@ function avg(arr) {
 function fetchData() {
   var days = state.days || 365;
   var cbName = '_whoop_cb_' + Date.now();
-  var url = API_URL + '?action=getData&days=' + days + '&callback=' + cbName;
+  var url = API_URL + '?action=getData&days=' + days + '&key=' + API_KEY + '&callback=' + cbName;
 
   window[cbName] = function(data) {
     delete window[cbName];
