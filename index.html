@@ -288,20 +288,29 @@ function avg(arr) {
 // Data Fetch
 // ═══════════════════════════════════════════════════════════════════
 function fetchData() {
-  var url = API_URL + '?action=getData&days=' + (state.days || 365);
-  fetch(url)
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.error) { console.error(data.error); return; }
-      state.allRows = data.rows || [];
-      applyDateFilter();
-      render();
-      document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-    })
-    .catch(function(err) {
-      console.error('Fetch error:', err);
-      document.getElementById('loadingState').innerHTML = '❌ Failed to load data';
-    });
+  var days = state.days || 365;
+  var cbName = '_whoop_cb_' + Date.now();
+  var url = API_URL + '?action=getData&days=' + days + '&callback=' + cbName;
+
+  window[cbName] = function(data) {
+    delete window[cbName];
+    var tag = document.getElementById('jsonpScript');
+    if (tag) tag.remove();
+    if (data.error) { console.error(data.error); return; }
+    state.allRows = data.rows || [];
+    applyDateFilter();
+    render();
+    document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  };
+
+  var script = document.createElement('script');
+  script.id = 'jsonpScript';
+  script.src = url;
+  script.onerror = function() {
+    delete window[cbName];
+    document.getElementById('loadingState').innerHTML = '❌ Failed to load data';
+  };
+  document.body.appendChild(script);
 }
 
 function applyDateFilter() {
