@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WHOOP Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+/* ═══════════ CSS Variables — WHOOP Dark Theme ═══════════ */
+:root {
+  --bg: #0d1117;
+  --bg-card: #161b22;
+  --bg-hover: #1c2333;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #484f58;
+  --green: #16a34a;
+  --green-dim: rgba(22,163,74,0.15);
+  --yellow: #eab308;
+  --yellow-dim: rgba(234,179,8,0.15);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.15);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.15);
+  --orange: #f97316;
+  --orange-dim: rgba(249,115,22,0.15);
+  --purple: #a855f7;
+  --teal: #14b8a6;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ═══════════ Header ═══════════ */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  position: sticky; top: 0; z-index: 100;
+}
+.header h1 {
+  font-size: 20px; font-weight: 700; letter-spacing: 2px;
+}
+.header-right { display: flex; align-items: center; gap: 12px; }
+.date-controls { display: flex; align-items: center; gap: 8px; }
+.date-controls input[type="date"] {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 10px; border-radius: var(--radius-sm); font-size: 13px;
+}
+.btn-range {
+  padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text-secondary); cursor: pointer;
+  font-size: 13px; transition: all 0.2s;
+}
+.btn-range:hover { border-color: var(--text-secondary); }
+.btn-range.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.last-update { font-size: 12px; color: var(--text-muted); }
+
+/* ═══════════ Main Content ═══════════ */
+.main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+/* ═══════════ Hero Cards — Recovery / Sleep / Strain ═══════════ */
+.hero-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+  margin-bottom: 24px;
+}
+.hero-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px; text-align: center;
+}
+.hero-card .label { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 16px; }
+.ring-wrap { position: relative; width: 140px; height: 140px; margin: 0 auto 12px; }
+.ring-bg, .ring-fg {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  border-radius: 50%;
+}
+.ring-bg {
+  background: conic-gradient(var(--border) 0deg, var(--border) 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 calc(100% - 12px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 calc(100% - 12px));
+}
+.ring-fg {
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 calc(100% - 12px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 calc(100% - 12px));
+  transition: background 0.6s ease;
+}
+.ring-value {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 36px; font-weight: 700;
+}
+.ring-unit { font-size: 16px; font-weight: 400; }
+.hero-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* ═══════════ Health Monitor Tiles ═══════════ */
+.health-row {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+  margin-bottom: 24px;
+}
+.health-tile {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; text-align: center;
+}
+.health-tile .tile-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-secondary); margin-bottom: 8px;
+}
+.health-tile .tile-value { font-size: 28px; font-weight: 700; }
+.health-tile .tile-avg { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.health-tile .tile-delta { font-size: 12px; margin-top: 2px; }
+.delta-up { color: var(--green); }
+.delta-down { color: var(--red); }
+.delta-flat { color: var(--text-muted); }
+
+/* ═══════════ Chart Grid ═══════════ */
+.chart-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  margin-bottom: 24px;
+}
+.chart-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.chart-card h3 {
+  font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-secondary); margin-bottom: 16px;
+}
+.chart-wrap { position: relative; height: 220px; }
+
+/* ═══════════ Sleep Breakdown ═══════════ */
+.sleep-breakdown {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  margin-bottom: 24px;
+}
+.sleep-stats { display: flex; flex-direction: column; gap: 12px; }
+.sleep-stat {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: var(--bg); border-radius: var(--radius-sm);
+}
+.sleep-stat .stat-label { font-size: 13px; color: var(--text-secondary); }
+.sleep-stat .stat-value { font-size: 18px; font-weight: 600; }
+
+/* ═══════════ Workout Table ═══════════ */
+.section-title {
+  font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-secondary); margin-bottom: 12px;
+}
+.table-wrap {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 24px;
+}
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; padding: 12px 16px; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-muted); border-bottom: 1px solid var(--border);
+  background: var(--bg-card); position: sticky; top: 0;
+}
+td {
+  padding: 10px 16px; font-size: 14px; border-bottom: 1px solid var(--border);
+}
+tr:hover td { background: var(--bg-hover); }
+.no-data { text-align: center; padding: 40px; color: var(--text-muted); }
+
+/* ═══════════ Loading ═══════════ */
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 400px; font-size: 16px; color: var(--text-secondary);
+}
+.spinner {
+  width: 24px; height: 24px; border: 3px solid var(--border);
+  border-top-color: var(--blue); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin-right: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════════ Footer ═══════════ */
+.footer {
+  text-align: center; padding: 16px; font-size: 12px;
+  color: var(--text-muted); border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ Header ═══════════ -->
+<div class="header">
+  <h1>WHOOP</h1>
+  <div class="header-right">
+    <div class="date-controls">
+      <button class="btn-range" data-days="7">7D</button>
+      <button class="btn-range active" data-days="30">30D</button>
+      <button class="btn-range" data-days="90">90D</button>
+      <button class="btn-range" data-days="0">ALL</button>
+      <input type="date" id="dateFrom" title="From">
+      <span style="color:var(--text-muted)">—</span>
+      <input type="date" id="dateTo" title="To">
+    </div>
+    <span class="last-update" id="lastUpdate"></span>
+  </div>
+</div>
+
+<!-- ═══════════ Main ═══════════ -->
+<div class="main" id="app">
+  <div class="loading" id="loadingState">
+    <div class="spinner"></div> Loading WHOOP data...
+  </div>
+</div>
+
+<!-- ═══════════ Footer ═══════════ -->
+<div class="footer">WHOOP Dashboard — Data from Google Sheets via 311_whoop_lifelog.py</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════════════
+var state = {
+  allRows: [],
+  filtered: [],
+  days: 30,
+  charts: {}
+};
+
+var API_URL = 'https://script.google.com/macros/s/AKfycbxuOnv0mqvrj65JrnZsSh_sYQn8hwcp_g3jJBP2WpaLxSacX_y3hbzleF5UBiCR1XZs/exec';
+
+// ═══════════════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════════════
+function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function sf(v) { var n = parseFloat(v); return isNaN(n) ? null : Math.round(n * 10) / 10; }
+function si(v) { var n = parseInt(v); return isNaN(n) ? 0 : n; }
+function fmtDate(yymmdd) {
+  if (!yymmdd || String(yymmdd).length !== 6) return '';
+  var s = String(yymmdd);
+  return '20' + s.slice(0,2) + '-' + s.slice(2,4) + '-' + s.slice(4,6);
+}
+function toISO(yymmdd) {
+  var s = String(yymmdd);
+  return '20' + s.slice(0,2) + '-' + s.slice(2,4) + '-' + s.slice(4,6);
+}
+function shortDate(yymmdd) {
+  var s = String(yymmdd);
+  var m = parseInt(s.slice(2,4));
+  var d = parseInt(s.slice(4,6));
+  var months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[m] + ' ' + d;
+}
+
+function recoveryColor(v) {
+  if (v == null) return var('--text-muted');
+  if (v >= 67) return 'var(--green)';
+  if (v >= 34) return 'var(--yellow)';
+  return 'var(--red)';
+}
+function recoveryBg(v) {
+  if (v == null) return 'var(--border)';
+  if (v >= 67) return 'var(--green-dim)';
+  if (v >= 34) return 'var(--yellow-dim)';
+  return 'var(--red-dim)';
+}
+function strainPct(v) { return v == null ? 0 : Math.min(100, (v / 21) * 100); }
+
+function deltaHTML(current, avg) {
+  if (current == null || avg == null) return '';
+  var diff = current - avg;
+  if (Math.abs(diff) < 0.1) return '<span class="delta-flat">—</span>';
+  var arrow = diff > 0 ? '▲' : '▼';
+  var cls = diff > 0 ? 'delta-up' : 'delta-down';
+  return '<span class="' + cls + '">' + arrow + ' ' + Math.abs(diff).toFixed(1) + '</span>';
+}
+
+function avg(arr) {
+  var vals = arr.filter(function(v) { return v != null; });
+  if (!vals.length) return null;
+  return vals.reduce(function(a, b) { return a + b; }, 0) / vals.length;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Data Fetch
+// ═══════════════════════════════════════════════════════════════════
+function fetchData() {
+  var url = API_URL + '?action=getData&days=' + (state.days || 365);
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) { console.error(data.error); return; }
+      state.allRows = data.rows || [];
+      applyDateFilter();
+      render();
+      document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    })
+    .catch(function(err) {
+      console.error('Fetch error:', err);
+      document.getElementById('loadingState').innerHTML = '❌ Failed to load data';
+    });
+}
+
+function applyDateFilter() {
+  var from = document.getElementById('dateFrom').value;
+  var to = document.getElementById('dateTo').value;
+  state.filtered = state.allRows.filter(function(r) {
+    var iso = toISO(r.date);
+    if (from && iso < from) return false;
+    if (to && iso > to) return false;
+    return true;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Render
+// ═══════════════════════════════════════════════════════════════════
+function render() {
+  var rows = state.filtered;
+  if (!rows.length) {
+    document.getElementById('app').innerHTML = '<div class="no-data">No WHOOP data for selected range</div>';
+    return;
+  }
+
+  var latest = rows[rows.length - 1];
+  var prev = rows.length > 1 ? rows[rows.length - 2] : null;
+
+  // Averages for health tiles
+  var last7 = rows.slice(-7);
+  var avgHRV = avg(last7.map(function(r) { return sf(r.hrv); }));
+  var avgRHR = avg(last7.map(function(r) { return sf(r.resting_hr); }));
+  var avgResp = avg(last7.map(function(r) { return sf(r.respiratory_rate); }));
+
+  var html = '';
+
+  // ── Hero Cards ──
+  var recov = sf(latest.recovery_score);
+  var sleepPerf = sf(latest.sleep_performance);
+  var strain = sf(latest.strain);
+
+  html += '<div class="hero-row">';
+  html += heroCard('Recovery', recov, '%', recoveryColor(recov), recov || 0, 'recovery');
+  html += heroCard('Sleep', sleepPerf, '%', 'var(--blue)', sleepPerf || 0, 'sleep');
+  html += heroCard('Strain', strain, '/21', 'var(--orange)', strainPct(strain), 'strain');
+  html += '</div>';
+
+  // ── Health Monitor ──
+  html += '<div class="health-row">';
+  html += healthTile('HRV', sf(latest.hrv), 'ms', avgHRV);
+  html += healthTile('Resting HR', sf(latest.resting_hr), 'bpm', avgRHR);
+  html += healthTile('SpO₂', sf(latest.spo2), '%', null);
+  html += healthTile('Resp Rate', sf(latest.respiratory_rate), '/min', avgResp);
+  html += healthTile('Skin Temp', sf(latest.skin_temp), '°C', null);
+  html += '</div>';
+
+  // ── Trend Charts ──
+  html += '<div class="chart-grid">';
+  html += '<div class="chart-card"><h3>Recovery Trend</h3><div class="chart-wrap"><canvas id="chartRecovery"></canvas></div></div>';
+  html += '<div class="chart-card"><h3>Strain Trend</h3><div class="chart-wrap"><canvas id="chartStrain"></canvas></div></div>';
+  html += '<div class="chart-card"><h3>HRV Trend</h3><div class="chart-wrap"><canvas id="chartHRV"></canvas></div></div>';
+  html += '<div class="chart-card"><h3>Resting HR Trend</h3><div class="chart-wrap"><canvas id="chartRHR"></canvas></div></div>';
+  html += '</div>';
+
+  // ── Sleep Section ──
+  html += '<div class="sleep-breakdown">';
+  html += '<div class="chart-card"><h3>Sleep Breakdown</h3><div class="chart-wrap"><canvas id="chartSleep"></canvas></div></div>';
+  html += '<div class="chart-card"><h3>Sleep Details — ' + shortDate(latest.date) + '</h3>';
+  html += '<div class="sleep-stats">';
+  html += sleepStat('Hours', formatHM(sf(latest.sleep_hours)));
+  html += sleepStat('Efficiency', sf(latest.sleep_efficiency) != null ? sf(latest.sleep_efficiency) + '%' : '—');
+  html += sleepStat('Consistency', sf(latest.sleep_consistency) != null ? sf(latest.sleep_consistency) + '%' : '—');
+  html += sleepStat('Deep', si(latest.deep_min) + ' min');
+  html += sleepStat('REM', si(latest.rem_min) + ' min');
+  html += sleepStat('Light', si(latest.light_min) + ' min');
+  html += sleepStat('Awake', si(latest.awake_min) + ' min');
+  html += sleepStat('Disturbances', si(latest.disturbance_count));
+  html += '</div></div>';
+  html += '</div>';
+
+  // ── Sleep Hours Trend ──
+  html += '<div class="chart-grid">';
+  html += '<div class="chart-card"><h3>Sleep Hours Trend</h3><div class="chart-wrap"><canvas id="chartSleepHours"></canvas></div></div>';
+  html += '<div class="chart-card"><h3>Calories Trend</h3><div class="chart-wrap"><canvas id="chartCalories"></canvas></div></div>';
+  html += '</div>';
+
+  // ── Workout Table ──
+  html += '<div class="section-title">Workout Log</div>';
+  html += '<div class="table-wrap"><table>';
+  html += '<tr><th>Date</th><th>Type</th><th>Strain</th><th>Avg HR</th><th>Max HR</th><th>kJ</th><th>Distance</th></tr>';
+  var workouts = rows.filter(function(r) { return r.workout_count && parseInt(r.workout_count) > 0; }).reverse();
+  if (workouts.length === 0) {
+    html += '<tr><td colspan="7" class="no-data">No workouts in range</td></tr>';
+  } else {
+    workouts.slice(0, 30).forEach(function(r) {
+      var dist = sf(r.distance_m);
+      var distStr = dist ? (dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m') : '—';
+      html += '<tr>';
+      html += '<td>' + fmtDate(r.date) + '</td>';
+      html += '<td>' + esc(r.workout_type || '—') + '</td>';
+      html += '<td>' + (sf(r.workout_strain) || '—') + '</td>';
+      html += '<td>' + (si(r.workout_avg_hr) || '—') + '</td>';
+      html += '<td>' + (si(r.workout_max_hr) || '—') + '</td>';
+      html += '<td>' + (si(r.workout_kilojoule) || '—') + '</td>';
+      html += '<td>' + distStr + '</td>';
+      html += '</tr>';
+    });
+  }
+  html += '</table></div>';
+
+  document.getElementById('app').innerHTML = html;
+
+  // ── Render Charts ──
+  renderCharts(rows);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Component Builders
+// ═══════════════════════════════════════════════════════════════════
+function heroCard(label, value, unit, color, pct, type) {
+  var display = value != null ? value : '—';
+  var deg = Math.round((pct / 100) * 360);
+  var grad = 'conic-gradient(' + color + ' 0deg, ' + color + ' ' + deg + 'deg, var(--border) ' + deg + 'deg)';
+  return '<div class="hero-card">' +
+    '<div class="label">' + label + '</div>' +
+    '<div class="ring-wrap">' +
+      '<div class="ring-bg"></div>' +
+      '<div class="ring-fg" style="background:' + grad + '"></div>' +
+      '<div class="ring-value" style="color:' + color + '">' + display + '<span class="ring-unit">' + unit + '</span></div>' +
+    '</div>' +
+  '</div>';
+}
+
+function healthTile(label, value, unit, avgVal) {
+  var display = value != null ? value : '—';
+  var delta = (value != null && avgVal != null) ? deltaHTML(value, avgVal) : '';
+  var avgStr = avgVal != null ? '7d avg: ' + avgVal.toFixed(1) : '';
+  return '<div class="health-tile">' +
+    '<div class="tile-label">' + label + '</div>' +
+    '<div class="tile-value">' + display + '<span style="font-size:14px;color:var(--text-secondary)"> ' + unit + '</span></div>' +
+    '<div class="tile-avg">' + avgStr + '</div>' +
+    '<div class="tile-delta">' + delta + '</div>' +
+  '</div>';
+}
+
+function sleepStat(label, value) {
+  return '<div class="sleep-stat"><span class="stat-label">' + label + '</span><span class="stat-value">' + value + '</span></div>';
+}
+
+function formatHM(hours) {
+  if (hours == null) return '—';
+  var h = Math.floor(hours);
+  var m = Math.round((hours - h) * 60);
+  return h + 'h ' + m + 'm';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Charts
+// ═══════════════════════════════════════════════════════════════════
+function destroyCharts() {
+  Object.keys(state.charts).forEach(function(k) {
+    if (state.charts[k]) { state.charts[k].destroy(); delete state.charts[k]; }
+  });
+}
+
+function renderCharts(rows) {
+  destroyCharts();
+
+  var labels = rows.map(function(r) { return shortDate(r.date); });
+  var chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1c2333',
+        borderColor: '#30363d',
+        borderWidth: 1,
+        titleColor: '#e6edf3',
+        bodyColor: '#8b949e',
+        padding: 10,
+        cornerRadius: 8
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(48,54,61,0.5)' },
+        ticks: { color: '#484f58', maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 11 } }
+      },
+      y: {
+        grid: { color: 'rgba(48,54,61,0.3)' },
+        ticks: { color: '#484f58', font: { size: 11 } }
+      }
+    }
+  };
+
+  // Recovery
+  state.charts.recovery = lineChart('chartRecovery', labels,
+    rows.map(function(r) { return sf(r.recovery_score); }),
+    '#16a34a', 'rgba(22,163,74,0.1)', chartDefaults, { min: 0, max: 100 });
+
+  // Strain
+  state.charts.strain = lineChart('chartStrain', labels,
+    rows.map(function(r) { return sf(r.strain); }),
+    '#f97316', 'rgba(249,115,22,0.1)', chartDefaults, { min: 0, max: 21 });
+
+  // HRV
+  state.charts.hrv = lineChart('chartHRV', labels,
+    rows.map(function(r) { return sf(r.hrv); }),
+    '#3b82f6', 'rgba(59,130,246,0.1)', chartDefaults);
+
+  // RHR
+  state.charts.rhr = lineChart('chartRHR', labels,
+    rows.map(function(r) { return sf(r.resting_hr); }),
+    '#ef4444', 'rgba(239,68,68,0.1)', chartDefaults);
+
+  // Sleep Breakdown (stacked bar — last 14 days)
+  var recent = rows.slice(-14);
+  var sleepLabels = recent.map(function(r) { return shortDate(r.date); });
+  state.charts.sleep = sleepStackedBar('chartSleep', sleepLabels, recent);
+
+  // Sleep Hours
+  state.charts.sleepHours = lineChart('chartSleepHours', labels,
+    rows.map(function(r) { return sf(r.sleep_hours); }),
+    '#a855f7', 'rgba(168,85,247,0.1)', chartDefaults);
+
+  // Calories
+  state.charts.calories = barChart('chartCalories', labels,
+    rows.map(function(r) { return si(r.kilojoule); }),
+    '#14b8a6', chartDefaults);
+}
+
+function lineChart(id, labels, data, color, bgColor, defaults, yOverride) {
+  var el = document.getElementById(id);
+  if (!el) return null;
+  var opts = JSON.parse(JSON.stringify(defaults));
+  if (yOverride) { opts.scales.y.min = yOverride.min; opts.scales.y.max = yOverride.max; }
+  return new Chart(el, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data, borderColor: color, backgroundColor: bgColor,
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 4,
+        fill: true, tension: 0.3, spanGaps: true
+      }]
+    },
+    options: opts
+  });
+}
+
+function barChart(id, labels, data, color, defaults) {
+  var el = document.getElementById(id);
+  if (!el) return null;
+  var opts = JSON.parse(JSON.stringify(defaults));
+  return new Chart(el, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data, backgroundColor: color + '80', borderColor: color,
+        borderWidth: 1, borderRadius: 4
+      }]
+    },
+    options: opts
+  });
+}
+
+function sleepStackedBar(id, labels, rows) {
+  var el = document.getElementById(id);
+  if (!el) return null;
+  return new Chart(el, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Deep', data: rows.map(function(r) { return si(r.deep_min); }), backgroundColor: '#6366f1', borderRadius: 2 },
+        { label: 'REM', data: rows.map(function(r) { return si(r.rem_min); }), backgroundColor: '#3b82f6', borderRadius: 2 },
+        { label: 'Light', data: rows.map(function(r) { return si(r.light_min); }), backgroundColor: '#64748b', borderRadius: 2 },
+        { label: 'Awake', data: rows.map(function(r) { return si(r.awake_min); }), backgroundColor: '#ef4444', borderRadius: 2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: '#8b949e', boxWidth: 12, padding: 12, font: { size: 11 } } },
+        tooltip: { backgroundColor: '#1c2333', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 10, cornerRadius: 8 }
+      },
+      scales: {
+        x: { stacked: true, grid: { color: 'rgba(48,54,61,0.5)' }, ticks: { color: '#484f58', font: { size: 11 } } },
+        y: { stacked: true, grid: { color: 'rgba(48,54,61,0.3)' }, ticks: { color: '#484f58', font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Event Handlers
+// ═══════════════════════════════════════════════════════════════════
+document.querySelectorAll('.btn-range').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.btn-range').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    state.days = parseInt(btn.dataset.days) || 365;
+    // Clear custom dates
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    fetchData();
+  });
+});
+
+document.getElementById('dateFrom').addEventListener('change', onCustomDate);
+document.getElementById('dateTo').addEventListener('change', onCustomDate);
+
+function onCustomDate() {
+  document.querySelectorAll('.btn-range').forEach(function(b) { b.classList.remove('active'); });
+  state.days = 365; // fetch all, filter client-side
+  applyDateFilter();
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════════════════════
+fetchData();
+
+// Auto-refresh every 5 min
+setInterval(fetchData, 5 * 60 * 1000);
+
+</script>
+</body>
+</html>
