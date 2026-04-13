@@ -256,7 +256,7 @@ function shortDate(yymmdd) {
 }
 
 function recoveryColor(v) {
-  if (v == null) return var('--text-muted');
+  if (v == null) return 'var(--text-muted)';
   if (v >= 67) return 'var(--green)';
   if (v >= 34) return 'var(--yellow)';
   return 'var(--red)';
